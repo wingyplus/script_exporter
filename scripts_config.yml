@@ -1,0 +1,6 @@
+scripts_config:
+- name: ping hostname xxx
+  cmd: ping
+  args: ["xxx"]
+- name: sleep 2 sec
+  cmd: sleep 2
