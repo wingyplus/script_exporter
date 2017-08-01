@@ -1,4 +1,3 @@
-// TODO: run script
 // TODO: add timeout when running script (with context)
 // TODO: run script in parallel
 
@@ -6,9 +5,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os/exec"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -41,7 +42,26 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf []Script) {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(probeSuccessGauge)
 
-	probeSuccessGauge.With(prometheus.Labels{"script": "ping"}).Set(1.0)
+	shCmd := exec.Command("sh")
+	stdin, err := shCmd.StdinPipe()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	stdin.Write([]byte("echo 'Hello, World'"))
+	stdin.Close()
+
+	gauge := probeSuccessGauge.With(prometheus.Labels{"script": "echo 'Hello, World'"})
+
+	if err := shCmd.Start(); err != nil {
+		fmt.Println("sh start error", err.Error())
+	}
+	if err := shCmd.Wait(); err != nil {
+		fmt.Println("sh wait error", err.Error())
+		gauge.Set(0)
+	} else {
+		gauge.Set(1.0)
+	}
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
