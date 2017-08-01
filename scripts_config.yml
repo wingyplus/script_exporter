@@ -1,6 +1,7 @@
 scripts_config:
-- name: ping hostname xxx
-  cmd: ping
-  args: ["xxx"]
-- name: sleep 2 sec
+- name: try echo - set gauge to 1
+  cmd: echo 'Hello, World'
+- name: sleep 2 sec - set gauge to 1
   cmd: sleep 2
+- name: exit 1 - set gauge to 0
+  cmd: exit 1

@@ -25,7 +25,6 @@ type Config struct {
 type Script struct {
 	Name    string        `yaml:"name"`
 	Cmd     string        `yaml:"cmd"`
-	Args    []string      `yaml:"args,omitempty"`
 	Timeout time.Duration `yaml:"timeout,omitempty"`
 }
 
@@ -33,7 +32,7 @@ var (
 	scriptsConfig = flag.String("scripts_config", "./scripts_config.yml", "scripts configuration path")
 )
 
-func probeHandler(w http.ResponseWriter, r *http.Request, conf []Script) {
+func probeHandler(w http.ResponseWriter, r *http.Request, scripts []Script) {
 	probeSuccessGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "script_success",
 		Help: "Script success",
@@ -42,25 +41,27 @@ func probeHandler(w http.ResponseWriter, r *http.Request, conf []Script) {
 	registry := prometheus.NewRegistry()
 	registry.MustRegister(probeSuccessGauge)
 
-	shCmd := exec.Command("sh")
-	stdin, err := shCmd.StdinPipe()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	for _, script := range scripts {
+		shCmd := exec.Command("sh")
+		stdin, err := shCmd.StdinPipe()
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 
-	stdin.Write([]byte("echo 'Hello, World'"))
-	stdin.Close()
+		stdin.Write([]byte(script.Cmd))
+		stdin.Close()
 
-	gauge := probeSuccessGauge.With(prometheus.Labels{"script": "echo 'Hello, World'"})
+		gauge := probeSuccessGauge.With(prometheus.Labels{"script": script.Name})
 
-	if err := shCmd.Start(); err != nil {
-		fmt.Println("sh start error", err.Error())
-	}
-	if err := shCmd.Wait(); err != nil {
-		fmt.Println("sh wait error", err.Error())
-		gauge.Set(0)
-	} else {
-		gauge.Set(1.0)
+		if err := shCmd.Start(); err != nil {
+			fmt.Println("sh start error", err.Error())
+		}
+		if err := shCmd.Wait(); err != nil {
+			fmt.Println("sh wait error", err.Error())
+			gauge.Set(0)
+		} else {
+			gauge.Set(1.0)
+		}
 	}
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
